@@ -29,7 +29,12 @@ struct CacheBarApp: App {
             }
         } label: {
             MenuTitleView(sessions: preview.isActive ? preview.sessions : store.sessions)
-                .task { if !preview.isActive { store.start() } }
+                .task {
+                    if !preview.isActive {
+                        store.start()
+                        attachNotifications(to: store)
+                    }
+                }
         }
         .menuBarExtraStyle(.window)
     }

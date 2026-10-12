@@ -5,14 +5,12 @@ import Observation
 public final class SessionStore {
     public private(set) var sessions: [SessionSnapshot] = []
     private let adapter = ClaudeCodeAdapter()
-    private let fileManager = FileManager.default
     private let sessionsDirectory: URL
     private let projectsDirectory: URL
     private let clock: @Sendable () -> Date
     private var transcriptSnapshots: [String: SessionSnapshot] = [:]
     private var statuslineSnapshots: [String: SessionSnapshot] = [:]
-    private var sources: [DispatchSourceFileSystemObject] = []
-    private var poller: DispatchSourceTimer?
+    private var pollingTask: Task<Void, Never>?
 
     public init(sessionsDirectory: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Library/Application Support/CacheBar/sessions"), projectsDirectory: URL = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude/projects"), now: @escaping @Sendable () -> Date = Date.init) {
         self.sessionsDirectory = sessionsDirectory
@@ -21,9 +19,16 @@ public final class SessionStore {
     }
 
     public func start() {
-        Task { await refresh() }
-        watch(sessionsDirectory)
-        startTranscriptPolling()
+        guard pollingTask == nil else { return }
+        pollingTask = Task { [weak self] in
+            guard let self else { return }
+            await refresh()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled else { return }
+                await refresh()
+            }
+        }
     }
 
     public func refresh() async {
@@ -90,22 +95,4 @@ public final class SessionStore {
         }
     }
 
-    private func watch(_ directory: URL) {
-        try? fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        let descriptor = open(directory.path, O_EVTONLY)
-        guard descriptor >= 0 else { return }
-        let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.write, .rename, .delete], queue: .global(qos: .utility))
-        source.setEventHandler { [weak self] in Task { await self?.refresh() } }
-        source.setCancelHandler { close(descriptor) }
-        source.resume()
-        sources.append(source)
-    }
-
-    private func startTranscriptPolling() {
-        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
-        timer.schedule(deadline: .now() + 2, repeating: 2)
-        timer.setEventHandler { [weak self] in Task { await self?.refresh() } }
-        timer.resume()
-        poller = timer
-    }
 }
