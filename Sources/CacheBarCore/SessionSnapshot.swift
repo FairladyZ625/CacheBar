@@ -45,9 +45,9 @@ public protocol AgentAdapter {
     func snapshots(fromTranscript data: Data) throws -> [SessionSnapshot]
 }
 
-public struct ClaudeCodeAdapter: AgentAdapter {
-    private let clock: () -> Date
-    public init(now: @escaping () -> Date = Date.init) { clock = now }
+public struct ClaudeCodeAdapter: AgentAdapter, Sendable {
+    private let clock: @Sendable () -> Date
+    public init(now: @escaping @Sendable () -> Date = Date.init) { clock = now }
 
     public func snapshot(fromStatusline data: Data, now: Date? = nil) throws -> SessionSnapshot {
         let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
@@ -87,8 +87,9 @@ public struct ClaudeCodeAdapter: AgentAdapter {
                   let requestID = row["requestId"] as? String,
                   let message = row["message"] as? [String: Any],
                   let usage = message["usage"] as? [String: Any] else { continue }
-            if number(usage["ephemeral_1h_input_tokens"]) > 0 { ttlBySession[sessionID] = .oneHour }
-            if number(usage["ephemeral_5m_input_tokens"]) > 0 { ttlBySession[sessionID] = .fiveMinutes }
+            let cacheCreation = usage["cache_creation"] as? [String: Any] ?? [:]
+            if number(cacheCreation["ephemeral_1h_input_tokens"]) > 0 { ttlBySession[sessionID] = .oneHour }
+            if number(cacheCreation["ephemeral_5m_input_tokens"]) > 0 { ttlBySession[sessionID] = .fiveMinutes }
             let key = sessionID + ":" + requestID
             guard seen.insert(key).inserted else { continue }
             let read = number(usage["cache_read_input_tokens"])
@@ -97,7 +98,7 @@ public struct ClaudeCodeAdapter: AgentAdapter {
             let total = read + create + input
             let time = parseDate(row["timestamp"]) ?? .distantPast
             let ttl = ttlBySession[sessionID]
-            latest[sessionID] = SessionSnapshot(sessionID: sessionID, name: nil, projectDirectory: nil, model: nil,
+            latest[sessionID] = SessionSnapshot(sessionID: sessionID, name: nil, projectDirectory: row["cwd"] as? String, model: message["model"] as? String,
                 cacheHitRatio: total > 0 ? Double(read) / Double(total) : nil, cacheWarm: nil, cacheTTL: ttl,
                 expiresAt: ttl.map { time.addingTimeInterval($0 == .oneHour ? 3600 : 300) }, recacheTokensIfCold: nil,
                 fiveHourUsage: nil, fiveHourResetsAt: nil, sevenDayUsage: nil, sevenDayResetsAt: nil,
@@ -113,5 +114,6 @@ private func date(_ value: Any?) -> Date? { (value as? NSNumber).map { Date(time
 private func parseDate(_ value: Any?) -> Date? {
     guard let value = value as? String else { return nil }
     let formatter = ISO8601DateFormatter()
-    return formatter.date(from: value)
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
 }

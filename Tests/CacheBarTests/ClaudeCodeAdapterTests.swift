@@ -6,8 +6,8 @@ import Testing
 func statuslineSnapshot() throws {
     let data = try Data(contentsOf: fixture("statusline.json"))
     let snapshot = try ClaudeCodeAdapter().snapshot(fromStatusline: data, now: Date(timeIntervalSince1970: 1_791_778_800))
-    #expect(snapshot.sessionID == "fixture-session")
-    #expect(snapshot.cacheHitRatio == 0.5)
+    #expect(snapshot.sessionID == "00000000-0000-0000-0000-000000000000")
+    #expect(snapshot.cacheHitRatio == 269486.0 / (269486.0 + 1134.0 + 2.0))
     #expect(snapshot.expiresAt == Date(timeIntervalSince1970: 1_791_778_836))
     #expect(snapshot.cacheTTL == .oneHour)
     #expect(snapshot.fiveHourUsage == 47)
@@ -19,16 +19,15 @@ func statuslineSnapshot() throws {
 func transcriptFallback() throws {
     let data = try Data(contentsOf: fixture("transcript.jsonl"))
     let snapshots = try ClaudeCodeAdapter(now: { Date(timeIntervalSince1970: 1_800) }).snapshots(fromTranscript: data)
-    #expect(snapshots.count == 2)
-    let snapshot = try #require(snapshots.first { $0.sessionID == "fixture-session" })
-    #expect(snapshot.cacheHitRatio == 0.8)
-    #expect(snapshot.cacheTTL == .fiveMinutes)
-    #expect(snapshot.expiresAt == Date(timeIntervalSince1970: 2_100))
-    #expect(snapshot.contextTokens == 150)
+    #expect(snapshots.count == 1)
+    let snapshot = try #require(snapshots.first { $0.sessionID == "00000000-0000-0000-0000-000000000001" })
+    #expect(snapshot.cacheHitRatio == 87495.0 / (87495.0 + 8496.0 + 2.0))
+    #expect(snapshot.cacheTTL == .oneHour)
+    #expect(snapshot.expiresAt == Date(timeIntervalSince1970: 1_791_776_532.716))
+    #expect(snapshot.contextTokens == 95_993)
+    #expect(snapshot.projectDirectory == "/Users/example/proj")
     #expect(snapshot.costUSD == nil)
-    let hourSnapshot = try #require(snapshots.first { $0.sessionID == "fixture-one-hour" })
-    #expect(hourSnapshot.cacheTTL == .oneHour)
-    #expect(hourSnapshot.expiresAt == Date(timeIntervalSince1970: 6_000))
+    #expect(snapshots.first { $0.sessionID == "fixture-one-hour" } == nil)
 }
 
 @Test("statusline and transcript merge keeps newer cache fields and snapshot-only metrics")
@@ -51,7 +50,7 @@ func missingFieldsAreNil() throws {
 }
 
 @Test("session store publishes parsed statusline snapshots") @MainActor
-func sessionStorePublishesSnapshots() throws {
+func sessionStorePublishesSnapshots() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     let statuslines = root.appendingPathComponent("sessions")
     let projects = root.appendingPathComponent("projects")
@@ -60,9 +59,9 @@ func sessionStorePublishesSnapshots() throws {
     defer { try? FileManager.default.removeItem(at: root) }
     try Data(contentsOf: fixture("statusline.json")).write(to: statuslines.appendingPathComponent("fixture-session.json"))
     let store = SessionStore(sessionsDirectory: statuslines, projectsDirectory: projects, now: { Date(timeIntervalSince1970: 1_791_778_800) })
-    store.refresh()
-    #expect(store.sessions.map(\.sessionID) == ["fixture-session"])
-    #expect(store.sessions.first?.name == "Fixture")
+    await store.refresh()
+    #expect(store.sessions.map(\.sessionID) == ["00000000-0000-0000-0000-000000000000"])
+    #expect(store.sessions.first?.name == "<redacted>")
 }
 
 private func fixture(_ name: String) -> URL {
