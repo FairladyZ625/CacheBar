@@ -4,3 +4,6 @@
 DerivedData/
 .DS_Store
 dist/
+/harness/
+/.harness/
+/.worktrees/
