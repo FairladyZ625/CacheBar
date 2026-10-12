@@ -2,7 +2,11 @@
 set -euo pipefail
 
 NAME="CacheBar Local Signing"
-KEYCHAIN="$(security login-keychain | tr -d '\"')"
+KEYCHAIN="${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain | tr -d '\"')}"
+KEYCHAIN_LABEL="login keychain"
+if [[ -n "${CACHEBAR_SIGN_KEYCHAIN:-}" ]]; then
+	KEYCHAIN_LABEL="keychain '$KEYCHAIN'"
+fi
 REMOVE=0
 YES=0
 
@@ -23,18 +27,18 @@ for arg in "$@"; do
 	esac
 done
 
-if security find-identity -v "$KEYCHAIN" 2>/dev/null | grep -Fq "$NAME"; then
+if security find-identity "$KEYCHAIN" 2>/dev/null | grep -Fq "\"$NAME\""; then
 	if (( REMOVE == 0 )); then
-		echo "Signing identity '$NAME' already exists in the login keychain."
+		echo "Signing identity '$NAME' already exists in the $KEYCHAIN_LABEL."
 		exit 0
 	fi
-	ACTION="Remove '$NAME' from the login keychain."
+	ACTION="Remove '$NAME' from the $KEYCHAIN_LABEL."
 else
 	if (( REMOVE == 1 )); then
-		echo "Signing identity '$NAME' was not found in the login keychain."
+		echo "Signing identity '$NAME' was not found in the $KEYCHAIN_LABEL."
 		exit 0
 	fi
-	ACTION="Create a 10-year self-signed code-signing identity named '$NAME' in the login keychain, allowing only /usr/bin/codesign to use its private key."
+	ACTION="Create a 10-year self-signed code-signing identity named '$NAME' in the $KEYCHAIN_LABEL, allowing only /usr/bin/codesign to use its private key."
 fi
 
 echo "$ACTION"
@@ -76,4 +80,4 @@ openssl pkcs12 -export -inkey "$TEMP_DIR/key.pem" -in "$TEMP_DIR/cert.pem" \
 	-out "$TEMP_DIR/identity.p12" -passout "pass:$PASSWORD" -name "$NAME"
 security import "$TEMP_DIR/identity.p12" -k "$KEYCHAIN" -f pkcs12 \
 	-P "$PASSWORD" -T /usr/bin/codesign
-echo "Created '$NAME' in the login keychain. No system trust settings were changed."
+echo "Created '$NAME' in the $KEYCHAIN_LABEL. No system trust settings were changed."

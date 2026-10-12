@@ -18,9 +18,11 @@ CacheBar 使用 macOS 本机通知。macOS 会把通知授权与应用签名身�
 scripts/setup-signing.sh
 ```
 
-脚本会先说明操作并等待确认。它在临时目录生成有效期十年的自签名证书，仅包含数字签名与 Code Signing 用途，然后导入登录钥匙串，并把私钥访问限制为 `/usr/bin/codesign`。临时私钥、PKCS#12 文件和随机口令会在退出时清理。可用 `--yes` 跳过确认；身份已存在时脚本直接报告并成功退出。
+脚本会先说明操作并等待确认。它在临时目录生成有效期十年的自签名证书，仅包含数字签名与 Code Signing 用途，然后导入登录钥匙串，并把私钥访问限制为 `/usr/bin/codesign`。临时私钥、PKCS#12 文件和随机口令会在退出时清理。可用 `--yes` 跳过确认；身份已存在时脚本直接报告并成功退出。脚本通过不带 `-v` 的 `security find-identity` 查找身份，因为自签名身份在未调整信任设置时可能显示 `CSSMERR_TP_NOT_TRUSTED`，不会被 `-v` 列出；这是预期状态，不影响 `codesign` 使用身份。
 
 之后执行 `scripts/build-app.sh`，脚本依次采用 `CACHEBAR_SIGN_IDENTITY` 环境变量、钥匙串中的 `CacheBar Local Signing`，或在都不可用时回退 ad-hoc 并提示本页。也可显式设置 `CACHEBAR_SIGN_IDENTITY=-` 选择 ad-hoc。
+
+亲自核验时，可运行 `security find-identity "$(security login-keychain | tr -d '\"')"` 查看登录钥匙串身份。若该行带有 `CSSMERR_TP_NOT_TRUSTED`，这是未修改系统信任设置时的预期显示；不妨碍使用固定身份签名。
 
 新身份第一次构建后，前往“系统设置 → 通知”并允许 CacheBar 通知。通知授权界面由 macOS 管理。
 

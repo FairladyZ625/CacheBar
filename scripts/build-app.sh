@@ -14,13 +14,17 @@ cp .build/release/CacheBar "$CONTENTS/MacOS/CacheBar"
 cp packaging/Info.plist "$CONTENTS/Info.plist"
 if [[ -n "${CACHEBAR_SIGN_IDENTITY+x}" ]]; then
 	SIGN_IDENTITY="$CACHEBAR_SIGN_IDENTITY"
-elif security find-identity -v "$(security login-keychain 2>/dev/null | tr -d '\"')" 2>/dev/null | grep -Fq 'CacheBar Local Signing'; then
+elif security find-identity "${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain 2>/dev/null | tr -d '\"')}" 2>/dev/null | grep -Fq '"CacheBar Local Signing"'; then
 	SIGN_IDENTITY="CacheBar Local Signing"
 else
 	SIGN_IDENTITY="-"
 	echo "No local signing identity found; using ad-hoc signing. See docs/signing.md to set one up."
 fi
 
-codesign --force --sign "$SIGN_IDENTITY" "$APP"
+if [[ -n "${CACHEBAR_SIGN_KEYCHAIN:-}" && "$SIGN_IDENTITY" != "-" ]]; then
+	codesign --force --keychain "$CACHEBAR_SIGN_KEYCHAIN" --sign "$SIGN_IDENTITY" "$APP"
+else
+	codesign --force --sign "$SIGN_IDENTITY" "$APP"
+fi
 
 echo "Built $APP"
