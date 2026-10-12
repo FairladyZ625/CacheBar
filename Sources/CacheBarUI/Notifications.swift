@@ -5,8 +5,8 @@ import Observation
 import UserNotifications
 
 /// 前台也出横幅：willPresent 默认静默，显式放行 banner + sound。
-final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
+final public class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
+    public func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound])
@@ -14,7 +14,7 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
 }
 
 @MainActor
-func attachNotifications(to store: SessionStore, status: NotificationStatus) {
+public func attachNotifications(to store: SessionStore, status: NotificationStatus) {
     let systemCenter = UNUserNotificationCenter.current()
     let scheduler = NotificationScheduler(center: SystemNotificationCenter(center: systemCenter, status: status))
     Task {
@@ -33,7 +33,7 @@ func attachNotifications(to store: SessionStore, status: NotificationStatus) {
 
 /// 读取系统当前的授权状态并刷新显示；notificationSettings 不弹窗。
 @MainActor
-func refreshAuthorizationDisplay(status: NotificationStatus) async {
+public func refreshAuthorizationDisplay(status: NotificationStatus) async {
     let settings = await UNUserNotificationCenter.current().notificationSettings()
     let mapped: NotificationStatus.Authorization
     switch settings.authorizationStatus {
@@ -47,7 +47,7 @@ func refreshAuthorizationDisplay(status: NotificationStatus) async {
 }
 
 @MainActor
-func sendTestNotification(status: NotificationStatus) {
+public func sendTestNotification(status: NotificationStatus) {
     let content = UNMutableNotificationContent()
     content.title = "CacheBar 测试通知"
     content.body = "看到这条横幅说明通知链路是通的。"
@@ -65,7 +65,7 @@ func sendTestNotification(status: NotificationStatus) {
 }
 
 @MainActor
-func openNotificationSettings() {
+public func openNotificationSettings() {
     let identifier = Bundle.main.bundleIdentifier ?? ""
     guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?\(identifier)") else { return }
     NSWorkspace.shared.open(url)
