@@ -1,0 +1,75 @@
+import CacheBarCore
+import SwiftUI
+
+/// 仅调试用的预览开关（截图与布局联调）：CACHEBAR_PREVIEW=1 用假数据、不扫描用户目录；
+/// CACHEBAR_PREVIEW_WINDOW=1 另开普通窗口展示面板；CACHEBAR_COLOR_SCHEME=dark|light 在应用内切外观。
+struct PreviewMode {
+    static let windowID = "cachebar-preview"
+    let isActive: Bool
+    let showsWindow: Bool
+    let colorScheme: ColorScheme?
+    var sessions: [SessionSnapshot] { PreviewSessions.samples }
+
+    init(environment: [String: String]) {
+        isActive = environment["CACHEBAR_PREVIEW"] == "1"
+        showsWindow = isActive && environment["CACHEBAR_PREVIEW_WINDOW"] == "1"
+        switch environment["CACHEBAR_COLOR_SCHEME"] {
+        case "dark": colorScheme = .dark
+        case "light": colorScheme = .light
+        default: colorScheme = nil
+        }
+    }
+
+    static let current = PreviewMode(environment: ProcessInfo.processInfo.environment)
+}
+
+/// 假会话样本：六行、覆盖 statusline 全字段 / transcript 兜底（nil 字段）/ 已过期三种形态，
+/// 排序口径与 SessionStore 一致（未过期且最早过期优先，已过期垫底）。
+enum PreviewSessions {
+    static var samples: [SessionSnapshot] {
+        return [
+            statusline(id: 1, name: "重构 session store", ratio: 0.96, ttl: .fiveMinutes, expiresIn: 108,
+                       recache: 187_400, five: 62, fiveResetIn: 2_580, seven: 31, sevenResetIn: 273_600,
+                       context: 187_400, window: 200_000, cost: 8.47, updatedIn: -40),
+            statusline(id: 2, name: "phase-1 plan 写作", ratio: 0.87, ttl: .oneHour, expiresIn: 545,
+                       recache: 96_100, five: 62, fiveResetIn: 2_580, seven: 31, sevenResetIn: 273_600,
+                       context: 96_100, window: 200_000, cost: 1.02, updatedIn: -700),
+            statusline(id: 3, name: "CacheBar 界面开发", ratio: 0.92, ttl: .oneHour, expiresIn: 2_492,
+                       recache: 148_300, five: 62, fiveResetIn: 2_580, seven: 31, sevenResetIn: 273_600,
+                       context: 148_300, window: 200_000, cost: 4.21, updatedIn: -1_200),
+            transcript(id: 4, directory: "/Users/dev/Projects/other-thing", ratio: 0.71, ttl: .oneHour,
+                       expiresIn: 3_120, context: 64_000, updatedIn: -300),
+            statusline(id: 5, name: "长会话 · 另一个项目", ratio: 0.99, ttl: .oneHour, expiresIn: 4_320,
+                       recache: 172_000, five: 62, fiveResetIn: 2_580, seven: 31, sevenResetIn: 273_600,
+                       context: 172_000, window: 200_000, cost: 21.3, updatedIn: -2_400),
+            transcript(id: 6, directory: "/Users/dev/Tools/scripts", ratio: 0.45, ttl: .fiveMinutes,
+                       expiresIn: -180, context: 12_400, updatedIn: -600),
+        ]
+    }
+
+    private static func statusline(id: Int, name: String, ratio: Double, ttl: CacheTTL, expiresIn: TimeInterval,
+                                  recache: Int, five: Double, fiveResetIn: TimeInterval, seven: Double,
+                                  sevenResetIn: TimeInterval, context: Int, window: Int, cost: Double,
+                                  updatedIn: TimeInterval) -> SessionSnapshot {
+        let now = Date()
+        return SessionSnapshot.make(sessionID: String(format: "00000000-0000-0000-0000-%012d", id), name: name,
+            projectDirectory: "/Users/dev/Projects/cachebar-\(id)", model: "Claude Sonnet 4.5",
+            cacheHitRatio: ratio, cacheWarm: true, cacheTTL: ttl, expiresAt: now.addingTimeInterval(expiresIn),
+            recacheTokensIfCold: recache, fiveHourUsage: five, fiveHourResetsAt: now.addingTimeInterval(fiveResetIn),
+            sevenDayUsage: seven, sevenDayResetsAt: now.addingTimeInterval(sevenResetIn),
+            contextTokens: context, contextWindowTokens: window, costUSD: cost,
+            source: .statusline, updatedAt: now.addingTimeInterval(updatedIn))
+    }
+
+    private static func transcript(id: Int, directory: String, ratio: Double, ttl: CacheTTL,
+                                   expiresIn: TimeInterval, context: Int, updatedIn: TimeInterval) -> SessionSnapshot {
+        let now = Date()
+        return SessionSnapshot.make(sessionID: String(format: "00000000-0000-0000-0000-%012d", id), name: nil,
+            projectDirectory: directory, model: "Claude Sonnet 4.5",
+            cacheHitRatio: ratio, cacheWarm: nil, cacheTTL: ttl, expiresAt: now.addingTimeInterval(expiresIn),
+            recacheTokensIfCold: nil, fiveHourUsage: nil, fiveHourResetsAt: nil,
+            sevenDayUsage: nil, sevenDayResetsAt: nil,
+            contextTokens: context, contextWindowTokens: nil, costUSD: nil,
+            source: .transcript, updatedAt: now.addingTimeInterval(updatedIn))
+    }
+}

@@ -4,46 +4,45 @@ import SwiftUI
 @main
 struct CacheBarApp: App {
     @State private var store = SessionStore()
+    private let preview = PreviewMode.current
+
+    init() {
+        // 预览暗色走 NSApp.appearance：本机上 preferredColorScheme 对窗口外观不生效（截图实测）。
+        if let scheme = PreviewMode.current.colorScheme {
+            NSApplication.shared.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
+        }
+    }
 
     var body: some Scene {
-        MenuBarExtra(menuTitle, systemImage: "hourglass") {
-            PanelView(sessions: store.sessions)
-                .task { store.start() }
+        menuBarExtra
+        previewWindow
+    }
+
+    private var menuBarExtra: some Scene {
+        MenuBarExtra(isInserted: .constant(true)) {
+            Group {
+                if preview.isActive {
+                    PanelView(sessions: preview.sessions)
+                } else {
+                    PanelView(sessions: store.sessions)
+                }
+            }
+        } label: {
+            MenuTitleView(sessions: preview.isActive ? preview.sessions : store.sessions)
+                .task { if !preview.isActive { store.start() } }
         }
         .menuBarExtraStyle(.window)
     }
-}
 
-private extension CacheBarApp {
-    var menuTitle: String {
-        guard let expiry = store.sessions.first?.expiresAt else { return "⏳ --:--" }
-        let seconds = max(0, Int(expiry.timeIntervalSinceNow))
-        return String(format: "⏳ %02d:%02d", seconds / 3600, (seconds % 3600) / 60)
-    }
-}
-
-struct PanelView: View {
-    let sessions: [SessionSnapshot]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if sessions.isEmpty {
-                Text("尚无可用会话数据")
-            }
-            ForEach(sessions) { session in
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(session.name ?? session.sessionID).font(.headline)
-                    TimelineView(.periodic(from: .now, by: 30)) { timeline in
-                        Text(session.expiresAt.map { expiry in
-                            let seconds = max(0, Int(expiry.timeIntervalSince(timeline.date)))
-                            return String(format: "缓存倒计时 %02d:%02d:%02d", seconds / 3600, (seconds % 3600) / 60, seconds % 60)
-                        } ?? "缓存时间未知")
-                        .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
+    /// 仅调试用：CACHEBAR_PREVIEW_WINDOW=1 时把同一份面板放进普通窗口，
+    /// 供截图与布局联调（SDK 无程序化打开 MenuBarExtra 面板的 API）。
+    /// SceneBuilder 不支持条件分支，窗口常驻声明、靠启动行为控制是否出现。
+    private var previewWindow: some Scene {
+        Window("CacheBar 预览", id: PreviewMode.windowID) {
+            PanelView(sessions: preview.sessions)
+                .onAppear { NSApplication.shared.activate(ignoringOtherApps: true) }
         }
-        .padding(14)
-        .frame(minWidth: 280)
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(preview.showsWindow ? .presented : .suppressed)
     }
 }
