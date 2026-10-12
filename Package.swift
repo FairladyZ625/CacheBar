@@ -16,7 +16,8 @@ let package = Package(
         ),
         .testTarget(
             name: "CacheBarTests",
-            dependencies: ["CacheBarCore"]
+            dependencies: ["CacheBarCore"],
+            resources: [.copy("Fixtures")]
         ),
     ]
 )
