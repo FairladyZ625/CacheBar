@@ -2,14 +2,13 @@ import CacheBarCore
 import SwiftUI
 
 /// 仅调试用的预览开关（截图与布局联调）：CACHEBAR_PREVIEW=1 用假数据、不扫描用户目录；
-/// CACHEBAR_COLOR_SCHEME=dark|light 在应用内切外观。
-/// 预览窗口场景已随「窗口关闭即退出」修复移除；面板截图需另做手段。
-struct PreviewMode {
-    let isActive: Bool
-    let colorScheme: ColorScheme?
-    var sessions: [SessionSnapshot] { PreviewSessions.samples }
+/// CACHEBAR_COLOR_SCHEME=dark|light 在应用内切外观。截图渲染由 CacheBarPreview target 承担。
+public struct PreviewMode: Sendable {
+    public let isActive: Bool
+    public let colorScheme: ColorScheme?
+    public var sessions: [SessionSnapshot] { PreviewSessions.samples }
 
-    init(environment: [String: String]) {
+    public init(environment: [String: String]) {
         isActive = environment["CACHEBAR_PREVIEW"] == "1"
         switch environment["CACHEBAR_COLOR_SCHEME"] {
         case "dark": colorScheme = .dark
@@ -18,13 +17,23 @@ struct PreviewMode {
         }
     }
 
-    static let current = PreviewMode(environment: ProcessInfo.processInfo.environment)
+    public static let current = PreviewMode(environment: ProcessInfo.processInfo.environment)
 }
 
-/// 假会话样本：六行、覆盖 statusline 全字段 / transcript 兜底（nil 字段）/ 已过期三种形态，
-/// 排序口径与 SessionStore 一致（未过期且最早过期优先，已过期垫底）。
-enum PreviewSessions {
-    static var samples: [SessionSnapshot] {
+extension NotificationStatus {
+    /// 预览/截图用的授权态假状态：已授权、排程 4 条。
+    public static var preview: NotificationStatus {
+        let status = NotificationStatus()
+        status.setAuthorization(.authorized)
+        status.setPendingCount(4)
+        return status
+    }
+}
+
+/// 假会话样本：五条活跃（statusline 全字段 / transcript 兜底 nil 字段 / 临近过期两种阈值）
+/// 加三条已过期（默认折叠），排序口径与 SessionStore 一致（未过期且最早过期优先，已过期垫底）。
+public enum PreviewSessions {
+    public static var samples: [SessionSnapshot] {
         return [
             statusline(id: 1, name: "重构 session store", ratio: 0.96, ttl: .fiveMinutes, expiresIn: 108,
                        recache: 187_400, five: 62, fiveResetIn: 2_580, seven: 31, sevenResetIn: 273_600,
@@ -42,6 +51,10 @@ enum PreviewSessions {
                        context: 172_000, window: 200_000, cost: 21.3, updatedIn: -2_400),
             transcript(id: 6, directory: "/Users/dev/Tools/scripts", ratio: 0.45, ttl: .fiveMinutes,
                        expiresIn: -180, context: 12_400, updatedIn: -600),
+            transcript(id: 7, directory: "/Users/dev/Playground/swift-chess", ratio: 0.38, ttl: .fiveMinutes,
+                       expiresIn: -2_400, context: 8_300, updatedIn: -9_000),
+            transcript(id: 8, directory: "/Users/dev/Projects/scratch", ratio: 0.52, ttl: .oneHour,
+                       expiresIn: -7_200, context: 21_000, updatedIn: -12_000),
         ]
     }
 

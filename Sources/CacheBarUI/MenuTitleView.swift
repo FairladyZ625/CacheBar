@@ -4,11 +4,15 @@ import SwiftUI
 /// 菜单栏标题：最紧急会话的「命中率 · 缓存倒计时」，每秒重算，临近过期变色。
 /// 用 Timer 而非 TimelineView：本机 macOS 27.2 上 TimelineView 装进 MenuBarExtra label
 /// 会触发 SwiftUI updateButton 的立即重排死循环（sample 实测主线程 100% 自旋）。
-struct MenuTitleView: View {
-    let sessions: [SessionSnapshot]
+public struct MenuTitleView: View {
+    public let sessions: [SessionSnapshot]
     @State private var now = Date()
 
-    var body: some View {
+    public init(sessions: [SessionSnapshot]) {
+        self.sessions = sessions
+    }
+
+    public var body: some View {
         title(at: now)
             .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { now = $0 }
     }
