@@ -14,7 +14,7 @@ cp .build/release/CacheBar "$CONTENTS/MacOS/CacheBar"
 cp packaging/Info.plist "$CONTENTS/Info.plist"
 if [[ -n "${CACHEBAR_SIGN_IDENTITY+x}" ]]; then
 	SIGN_IDENTITY="$CACHEBAR_SIGN_IDENTITY"
-elif security find-identity "${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain 2>/dev/null | tr -d '\"')}" 2>/dev/null | grep -Fq '"CacheBar Local Signing"'; then
+elif security find-identity "${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain 2>/dev/null | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')}" 2>/dev/null | grep -Fq '"CacheBar Local Signing"'; then
 	SIGN_IDENTITY="CacheBar Local Signing"
 else
 	SIGN_IDENTITY="-"

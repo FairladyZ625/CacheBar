@@ -22,7 +22,7 @@ scripts/setup-signing.sh
 
 之后执行 `scripts/build-app.sh`，脚本依次采用 `CACHEBAR_SIGN_IDENTITY` 环境变量、钥匙串中的 `CacheBar Local Signing`，或在都不可用时回退 ad-hoc 并提示本页。也可显式设置 `CACHEBAR_SIGN_IDENTITY=-` 选择 ad-hoc。
 
-亲自核验时，可运行 `security find-identity "$(security login-keychain | tr -d '\"')"` 查看登录钥匙串身份。若该行带有 `CSSMERR_TP_NOT_TRUSTED`，这是未修改系统信任设置时的预期显示；不妨碍使用固定身份签名。
+亲自核验时，可运行 `security find-identity` 查看登录钥匙串身份。若该行带有 `CSSMERR_TP_NOT_TRUSTED`，这是未修改系统信任设置时的预期显示；不妨碍使用固定身份签名。
 
 新身份第一次构建后，前往“系统设置 → 通知”并允许 CacheBar 通知。通知授权界面由 macOS 管理。
 

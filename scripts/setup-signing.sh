@@ -2,7 +2,7 @@
 set -euo pipefail
 
 NAME="CacheBar Local Signing"
-KEYCHAIN="${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain | tr -d '\"')}"
+KEYCHAIN="${CACHEBAR_SIGN_KEYCHAIN:-$(security login-keychain | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')}"
 KEYCHAIN_LABEL="login keychain"
 if [[ -n "${CACHEBAR_SIGN_KEYCHAIN:-}" ]]; then
 	KEYCHAIN_LABEL="keychain '$KEYCHAIN'"
