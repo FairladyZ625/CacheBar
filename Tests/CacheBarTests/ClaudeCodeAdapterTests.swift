@@ -64,6 +64,24 @@ func sessionStorePublishesSnapshots() async throws {
     #expect(store.sessions.first?.name == "<redacted>")
 }
 
+@Test("session store start remains alive across its polling cycle") @MainActor
+func sessionStoreStartIsStable() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let statuslines = root.appendingPathComponent("sessions")
+    let projects = root.appendingPathComponent("projects")
+    try FileManager.default.createDirectory(at: statuslines, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    try Data(contentsOf: fixture("statusline.json")).write(to: statuslines.appendingPathComponent("fixture-session.json"))
+
+    let store = SessionStore(sessionsDirectory: statuslines, projectsDirectory: projects, now: { Date(timeIntervalSince1970: 1_791_778_800) })
+    store.start()
+    store.start()
+    try await Task.sleep(for: .milliseconds(2_200))
+
+    #expect(store.sessions.map(\.sessionID) == ["00000000-0000-0000-0000-000000000000"])
+}
+
 private func fixture(_ name: String) -> URL {
     Bundle.module.resourceURL!.appendingPathComponent("Fixtures/\(name)")
 }
