@@ -1,9 +1,12 @@
 import CacheBarCore
 import SwiftUI
+import UserNotifications
 
 @main
 struct CacheBarApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store = SessionStore()
+    @State private var notificationStatus = NotificationStatus()
     private let preview = PreviewMode.current
 
     init() {
@@ -15,16 +18,17 @@ struct CacheBarApp: App {
 
     var body: some Scene {
         menuBarExtra
-        previewWindow
     }
 
     private var menuBarExtra: some Scene {
         MenuBarExtra(isInserted: .constant(true)) {
             Group {
                 if preview.isActive {
-                    PanelView(sessions: preview.sessions)
+                    PanelView(sessions: preview.sessions, status: Self.previewStatus)
                 } else {
-                    PanelView(sessions: store.sessions)
+                    PanelView(sessions: store.sessions, status: notificationStatus)
+                        // 面板每次打开时同步授权显示：用户可能刚在系统设置里改过，只读现状不弹窗。
+                        .task { await refreshAuthorizationDisplay(status: notificationStatus) }
                 }
             }
         } label: {
@@ -32,22 +36,31 @@ struct CacheBarApp: App {
                 .task {
                     if !preview.isActive {
                         store.start()
-                        attachNotifications(to: store)
+                        attachNotifications(to: store, status: notificationStatus)
                     }
                 }
         }
         .menuBarExtraStyle(.window)
     }
 
-    /// 仅调试用：CACHEBAR_PREVIEW_WINDOW=1 时把同一份面板放进普通窗口，
-    /// 供截图与布局联调（SDK 无程序化打开 MenuBarExtra 面板的 API）。
-    /// SceneBuilder 不支持条件分支，窗口常驻声明、靠启动行为控制是否出现。
-    private var previewWindow: some Scene {
-        Window("CacheBar 预览", id: PreviewMode.windowID) {
-            PanelView(sessions: preview.sessions)
-                .onAppear { NSApplication.shared.activate(ignoringOtherApps: true) }
-        }
-        .windowResizability(.contentSize)
-        .defaultLaunchBehavior(preview.showsWindow ? .presented : .suppressed)
+    private static let previewStatus: NotificationStatus = {
+        let status = NotificationStatus()
+        status.setAuthorization(.authorized)
+        status.setPendingCount(4)
+        return status
+    }()
+}
+
+/// 应用级不变量集中在这里：窗口（含菜单栏面板）关闭不退出，退出只走面板上的退出按钮；
+/// 通知 delegate 在启动完成时挂上，保证前台 willPresent 生效。
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let notificationPresenter = NotificationPresenter()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        UNUserNotificationCenter.current().delegate = notificationPresenter
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }

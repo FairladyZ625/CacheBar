@@ -35,6 +35,9 @@ public final class NotificationScheduler {
         clock = now
     }
 
+    /// 当前期望保持排程的通知条数，面板状态区显示用。
+    public var pendingCount: Int { scheduled.count }
+
     public func refresh(sessions: [SessionSnapshot]) {
         let now = clock()
         var desired: [String: ScheduledNotification] = [:]
