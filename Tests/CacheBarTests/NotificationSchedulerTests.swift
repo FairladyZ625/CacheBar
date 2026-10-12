@@ -13,6 +13,7 @@ func schedulesExpiryReminders() {
     scheduler.refresh(sessions: [snapshot(expiry: now.addingTimeInterval(3_600))])
     #expect(center.added.map(\.identifier) == ["session:600", "session:120"])
     #expect(center.added.map(\.fireAt) == [now.addingTimeInterval(3_000), now.addingTimeInterval(3_480)])
+    #expect(scheduler.pendingCount == 2)
     scheduler.refresh(sessions: [snapshot(expiry: now.addingTimeInterval(3_600))])
     #expect(center.added.count == 2)
     #expect(center.removed.isEmpty)

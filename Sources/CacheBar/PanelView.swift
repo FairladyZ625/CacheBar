@@ -2,11 +2,12 @@ import CacheBarCore
 import SwiftUI
 
 /// 液态玻璃面板：顶部账号级额度（5h / 7d 各显示一次），每个会话一行按业主给定顺序排布，
-/// 过期会话折叠到底部置灰。视图只消费 SessionSnapshot，全部格式化走 DisplayFormat。
-/// 倒计时用 Timer 而非 TimelineView：本机 macOS 27.2 上 TimelineView 装进窗口
-/// 只渲染一帧不重绘（实测间隔 5s 两次截屏逐字节相同）。
+/// 过期会话折叠到底部置灰；底部一行通知状态区。视图只消费 SessionSnapshot 与 NotificationStatus，
+/// 全部格式化走 DisplayFormat。倒计时用 Timer 而非 TimelineView：本机 macOS 27.2 上 TimelineView
+/// 装进窗口只渲染一帧不重绘（实测间隔 5s 两次截屏逐字节相同）。
 struct PanelView: View {
     let sessions: [SessionSnapshot]
+    let status: NotificationStatus
     @State private var now = Date()
 
     var body: some View {
@@ -39,10 +40,54 @@ struct PanelView: View {
                     }
                 }
             }
+            Divider()
+            notificationStatusBar
         }
         .padding(18)
         .frame(width: 540, alignment: .leading)
         .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    /// 底部状态区：通知授权三态、已排程条数、测试通知与退出；授权/排程失败的原因透传到这里。
+    private var notificationStatusBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let failure = status.lastFailure {
+                Text("⚠︎ \(failure)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            HStack(spacing: 14) {
+                Text("通知：\(authorizationText)")
+                    .font(.caption)
+                    .foregroundStyle(status.authorization == .denied ? Color.red : Color.secondary)
+                // 未授权或未决定（含授权请求直接报错的情形）都给出跳系统设置的出口。
+                if status.authorization != .authorized {
+                    Button("打开系统设置") { openNotificationSettings() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+                Text("已排程 \(status.pendingCount) 条")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Button("发送测试通知") { sendTestNotification(status: status) }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                Spacer(minLength: 12)
+                Button("退出 CacheBar") { NSApplication.shared.terminate(nil) }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+        }
+    }
+
+    private var authorizationText: String {
+        switch status.authorization {
+        case .authorized: return "已授权"
+        case .denied: return "未授权"
+        case .undetermined: return "未决定"
+        }
     }
 
     private var columnHeaders: some View {

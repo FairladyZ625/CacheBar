@@ -2,17 +2,15 @@ import CacheBarCore
 import SwiftUI
 
 /// 仅调试用的预览开关（截图与布局联调）：CACHEBAR_PREVIEW=1 用假数据、不扫描用户目录；
-/// CACHEBAR_PREVIEW_WINDOW=1 另开普通窗口展示面板；CACHEBAR_COLOR_SCHEME=dark|light 在应用内切外观。
+/// CACHEBAR_COLOR_SCHEME=dark|light 在应用内切外观。
+/// 预览窗口场景已随「窗口关闭即退出」修复移除；面板截图需另做手段。
 struct PreviewMode {
-    static let windowID = "cachebar-preview"
     let isActive: Bool
-    let showsWindow: Bool
     let colorScheme: ColorScheme?
     var sessions: [SessionSnapshot] { PreviewSessions.samples }
 
     init(environment: [String: String]) {
         isActive = environment["CACHEBAR_PREVIEW"] == "1"
-        showsWindow = isActive && environment["CACHEBAR_PREVIEW_WINDOW"] == "1"
         switch environment["CACHEBAR_COLOR_SCHEME"] {
         case "dark": colorScheme = .dark
         case "light": colorScheme = .light
